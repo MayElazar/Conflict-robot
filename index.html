@@ -154,6 +154,41 @@
     cursor: pointer; text-decoration: underline;
     text-underline-offset: 3px;
   }
+
+  /* ── Action buttons ── */
+  .btn-group {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 320px;
+    margin-top: 1.5rem;
+    z-index: 10;
+  }
+  .action-btn {
+    flex: 1;
+    padding: 14px;
+    font-size: 13px; font-weight: 500; font-family: inherit;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .action-btn:active { transform: scale(.97); opacity: 0.85; }
+  .action-btn.primary {
+    background: var(--amber);
+    color: #fff;
+    border-color: var(--amber);
+    box-shadow: 0 4px 12px rgba(212,130,10,0.25);
+  }
+  .action-btn.secondary {
+    background: #5436DA;
+    color: #fff;
+    border-color: #5436DA;
+    box-shadow: 0 4px 12px rgba(84, 54, 218, 0.25);
+  }
 </style>
 </head>
 <body>
@@ -176,6 +211,12 @@
   </div>
 
   <p class="status-label" id="statusLabel">Connecting to 172.20.10.10…</p>
+
+  <!-- Navigation Buttons -->
+  <div class="btn-group">
+    <button class="action-btn primary" onclick="goToControl()">Open Control App</button>
+    <button class="action-btn secondary" onclick="goToListen()">Start LLM Listening</button>
+  </div>
 
   <!-- Fallback: manual IP -->
   <div class="fallback" id="fallback">
@@ -238,16 +279,22 @@
 
   // ── Connect ─────────────────────────────────────────────────
   //
-  // Strategy: navigate to http://angel.local
+  // Strategy: navigate to http://172.20.10.10
   // This is a top-level browser navigation (not a fetch),
   // so it is NOT blocked by mixed-content rules.
   // The Arduino serves the full control app at that address.
   //
+  let autoRedirectTimer = null;
+  let connectionActive = false;
+
   function goTo(host) {
     window.location.href = 'http://' + host;
   }
 
   async function startConnect() {
+    if (connectionActive) return;
+    connectionActive = true;
+
     ringProgress = 0;
     document.getElementById('ringFill').style.stroke = 'var(--amber)';
     document.getElementById('ringFill').style.strokeDashoffset = DASH;
@@ -262,17 +309,29 @@
     setLabel('Connecting…');
     await new Promise(r => setTimeout(r, 600));
 
-    // Navigate — the browser will load http://angel.local
+    // Navigate — the browser will load http://172.20.10.10
     // If the Arduino is up, the control app loads.
     // If not reachable, the browser shows its own "can't connect" page.
     setLabel('Opening sculpture control…', 'ok');
     completeRing(true);
 
-    await new Promise(r => setTimeout(r, 500));
-    goTo('172.20.10.10');  // fixed static IP — always works with iPhone hotspot
+    autoRedirectTimer = setTimeout(() => {
+      goTo('172.20.10.10');  // fixed static IP — always works with iPhone hotspot
+    }, 500);
+  }
+
+  function goToControl() {
+    if (autoRedirectTimer) clearTimeout(autoRedirectTimer);
+    goTo('172.20.10.10');
+  }
+
+  function goToListen() {
+    if (autoRedirectTimer) clearTimeout(autoRedirectTimer);
+    window.location.href = './listen/';
   }
 
   function connectManual() {
+    if (autoRedirectTimer) clearTimeout(autoRedirectTimer);
     const val = document.getElementById('ipInput').value.trim();
     if (!val) return;
     goTo(val);
