@@ -5,21 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-<title>Angel</title>
+<title>Angel · Sculpture Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:       #F8F6F1;
-    --surface:  #EFECE4;
-    --border:   #DDD9CE;
-    --text:     #1C1A17;
-    --muted:    #8A8476;
+    --bg:       #0E0C0A;
+    --surface:  #1A1713;
+    --border:   #2E2A24;
+    --text:     #F0EDE8;
+    --muted:    #7A7368;
     --amber:    #D4820A;
-    --amber-lt: #F5E6C8;
+    --amber-lt: rgba(212,130,10,0.12);
     --green:    #3A7D5B;
-    --green-lt: #D4EDE1;
     --red:      #C0392B;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,491 +27,265 @@
     background: var(--bg);
     color: var(--text);
     font-family: 'DM Sans', -apple-system, sans-serif;
-    font-size: 16px;
     -webkit-font-smoothing: antialiased;
-  }
-  body { overflow-x: hidden; }
-
-  /* ── Connecting overlay ── */
-  #connectingOverlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: var(--bg);
-    z-index: 100;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-  }
-  #connectingOverlay.show { display: flex; }
-  .connecting-icon { font-size: 40px; animation: pulse 1.5s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .connecting-label { font-size: 15px; color: var(--muted); }
-  .fallback-ip {
-    margin-top: 1.5rem; font-size: 12px; color: var(--muted);
-    text-align: center; line-height: 1.8;
-  }
-  .fallback-ip input {
-    display: block; margin: .5rem auto 0;
-    width: 200px; padding: 8px 12px;
-    font-size: 14px; font-family: inherit;
-    border: 1px solid var(--border); border-radius: 8px;
-    background: white; color: var(--text); text-align: center; outline: none;
-  }
-  .fallback-ip input:focus { border-color: var(--amber); }
-  .fallback-btn {
-    display: block; margin: .5rem auto 0;
-    padding: 8px 20px; font-size: 13px; font-family: inherit; font-weight: 500;
-    background: var(--text); color: white;
-    border: none; border-radius: 8px; cursor: pointer;
+    overflow: hidden;
   }
 
-  /* ── Main app ── */
-  #appScreen { display: block; min-height: 100vh; padding-bottom: 2rem; }
-
-  /* Status bar */
-  .topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 1rem 1.25rem .75rem;
+  /* ── Background petals ── */
+  .bg-canvas {
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none; overflow: hidden;
   }
-  .topbar-title { font-size: 17px; font-weight: 500; }
-  .status-pill {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--muted);
-    background: var(--surface);
-    padding: 5px 10px; border-radius: 99px;
-    cursor: pointer;
+  .petal {
+    position: absolute;
+    border-radius: 50% 0 50% 0;
+    opacity: 0;
+    animation: drift linear infinite;
   }
-  .status-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--border);
-    transition: background .3s;
-  }
-  .status-dot.on  { background: var(--green); }
-  .status-dot.err { background: var(--red); }
-
-  /* ── Hero bloom arc ── */
-  .bloom-hero {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 1rem 1.25rem 1.5rem;
-  }
-  .arc-wrap { position: relative; width: 200px; height: 200px; }
-  .arc-wrap svg { width: 200px; height: 200px; }
-  .arc-center {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    pointer-events: none;
-  }
-  .arc-pct { font-size: 36px; font-weight: 300; color: var(--text); line-height: 1; }
-  .arc-label { font-size: 11px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
-  .mode-badge {
-    margin-top: .75rem;
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 13px; font-weight: 500;
-    padding: 6px 14px; border-radius: 99px;
-    background: var(--amber-lt); color: var(--amber);
-    transition: background .3s, color .3s;
-  }
-  .mode-badge.paused  { background: var(--surface); color: var(--muted); }
-  .mode-badge.manual  { background: var(--surface); color: var(--text); }
-
-  /* ── Sections ── */
-  .section { padding: 0 1.25rem; margin-bottom: 1rem; }
-  .section-label {
-    font-size: 11px; text-transform: uppercase;
-    letter-spacing: .07em; color: var(--muted);
-    margin-bottom: .6rem;
+  @keyframes drift {
+    0%   { transform: translateY(110vh) rotate(0deg);   opacity: 0; }
+    5%   { opacity: .18; }
+    95%  { opacity: .06; }
+    100% { transform: translateY(-20vh) rotate(720deg); opacity: 0; }
   }
 
-  /* Mode grid */
-  .mode-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .mode-btn {
-    padding: 14px 12px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: white;
-    cursor: pointer;
-    text-align: left;
-    -webkit-tap-highlight-color: transparent;
-    transition: border-color .15s, background .15s;
-    position: relative;
-  }
-  .mode-btn:active { background: var(--surface); }
-  .mode-btn.active {
-    border-color: var(--amber);
-    border-width: 1.5px;
-    background: var(--amber-lt);
-  }
-  .mode-btn .mb-icon {
-    font-size: 22px; margin-bottom: 6px; display: block;
-  }
-  .mode-btn .mb-name {
-    font-size: 14px; font-weight: 500; display: block;
-    color: var(--text);
-  }
-  .mode-btn .mb-desc {
-    font-size: 11px; color: var(--muted);
-    margin-top: 2px; line-height: 1.4; display: block;
-  }
-
-  /* Cards */
+  /* ── Main card ── */
   .card {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 1rem 1.25rem;
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 2rem 1.5rem;
+    text-align: center;
+  }
+
+  /* flower icon */
+  .flower {
+    font-size: 56px;
+    margin-bottom: 1.5rem;
+    animation: bloom-pulse 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 24px rgba(212,130,10,.4));
+  }
+  @keyframes bloom-pulse {
+    0%,100% { transform: scale(1);    filter: drop-shadow(0 0 20px rgba(212,130,10,.35)); }
+    50%      { transform: scale(1.08); filter: drop-shadow(0 0 36px rgba(212,130,10,.6)); }
+  }
+
+  h1 {
+    font-size: 28px; font-weight: 500; letter-spacing: -.01em;
+    margin-bottom: .4rem;
+  }
+  h1 em { font-style: italic; font-weight: 300; color: var(--amber); }
+
+  .subtitle {
+    font-size: 14px; color: var(--muted);
+    margin-bottom: 2.5rem; line-height: 1.6; max-width: 260px;
+  }
+
+  /* ── Progress ring ── */
+  .ring-wrap {
+    position: relative; width: 72px; height: 72px;
     margin-bottom: 1rem;
   }
-  .card-label {
-    font-size: 11px; text-transform: uppercase;
-    letter-spacing: .07em; color: var(--muted);
-    margin-bottom: .75rem;
+  .ring-wrap svg { width: 72px; height: 72px; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: var(--border); stroke-width: 4; }
+  .ring-fill  {
+    fill: none; stroke: var(--amber); stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 188;
+    stroke-dashoffset: 188;
+    transition: stroke-dashoffset .4s ease;
   }
-  .slider-row {
-    display: flex; align-items: center; gap: 12px;
-  }
-  .slider-edge { font-size: 12px; color: var(--muted); white-space: nowrap; }
-  input[type=range] {
-    -webkit-appearance: none;
-    flex: 1; height: 4px;
-    border-radius: 2px;
-    background: var(--border);
-    outline: none; cursor: pointer;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 24px; height: 24px;
-    border-radius: 50%;
-    background: var(--text);
-    cursor: pointer;
-    box-shadow: 0 1px 4px rgba(0,0,0,.15);
-  }
-  .slider-val {
-    font-size: 14px; font-weight: 500;
-    min-width: 32px; text-align: right;
-    color: var(--text);
+  .ring-icon {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    font-size: 24px;
   }
 
-  /* Manual bloom card */
-  .manual-card { transition: opacity .2s; }
-  .manual-card.dim { opacity: .35; pointer-events: none; }
-
-  /* Send button */
-  .send-btn {
-    display: block; width: calc(100% - 2.5rem);
-    margin: 0 1.25rem;
-    padding: 15px;
-    font-size: 15px; font-weight: 500; font-family: inherit;
-    background: var(--text); color: white;
-    border: none; border-radius: 14px;
-    cursor: pointer;
-    transition: background .15s, transform .1s;
-    letter-spacing: .01em;
-  }
-  .send-btn:active { transform: scale(0.98); background: #333; }
-
-  /* Change address link */
-  .change-ip {
-    text-align: center; margin-top: 1rem;
+  /* connecting label */
+  .status-label {
     font-size: 13px; color: var(--muted);
+    margin-bottom: 2rem; letter-spacing: .02em;
+    min-height: 1.4em;
+  }
+  .status-label.err { color: var(--red); }
+  .status-label.ok  { color: var(--green); }
+
+  /* manual IP fallback */
+  .fallback {
+    display: none;
+    flex-direction: column; align-items: center; gap: .6rem;
+    width: 100%; max-width: 300px;
+    animation: fadein .3s ease;
+  }
+  .fallback.show { display: flex; }
+  @keyframes fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  .fallback-label { font-size: 12px; color: var(--muted); }
+  .fallback input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px; font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface); color: var(--text);
+    text-align: center; outline: none;
+    transition: border-color .2s;
+  }
+  .fallback input:focus { border-color: var(--amber); }
+  .fallback-btn {
+    width: 100%;
+    padding: 13px;
+    font-size: 14px; font-weight: 500; font-family: inherit;
+    background: var(--amber); color: #fff;
+    border: none; border-radius: 12px;
+    cursor: pointer; transition: opacity .15s, transform .1s;
+  }
+  .fallback-btn:active { opacity: .85; transform: scale(.98); }
+  .hint {
+    font-size: 11px; color: var(--muted); margin-top: .5rem;
+    line-height: 1.7; max-width: 260px;
+  }
+
+  /* retry link */
+  .retry {
+    margin-top: 1.25rem;
+    font-size: 12px; color: var(--muted);
     cursor: pointer; text-decoration: underline;
     text-underline-offset: 3px;
   }
-
-  /* Toast */
-  .toast {
-    position: fixed; bottom: 28px; left: 50%;
-    transform: translateX(-50%);
-    font-size: 13px; font-family: inherit;
-    padding: 10px 20px; border-radius: 99px;
-    background: var(--text); color: white;
-    opacity: 0; transition: opacity .25s;
-    pointer-events: none; white-space: nowrap;
-    z-index: 999;
-  }
-  .toast.err { background: var(--red); }
-  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 
-<!-- ── Connecting overlay (shown while first fetch is in-flight) ── -->
-<div id="connectingOverlay" class="show">
-  <div class="connecting-icon">🌸</div>
-  <div class="connecting-label">Connecting to Angel…</div>
-  <div class="fallback-ip">
-    Not working? Enter IP manually:<br>
+<!-- Floating petals -->
+<div class="bg-canvas" id="bgCanvas"></div>
+
+<div class="card">
+  <div class="flower">🌸</div>
+  <h1>Angel <em>sculpture</em></h1>
+  <p class="subtitle">Opening connection to your kinetic bloom…</p>
+
+  <!-- Progress ring -->
+  <div class="ring-wrap" id="ringWrap">
+    <svg viewBox="0 0 60 60">
+      <circle class="ring-track" cx="30" cy="30" r="26"/>
+      <circle class="ring-fill" id="ringFill" cx="30" cy="30" r="26"/>
+    </svg>
+    <span class="ring-icon" id="ringIcon">🌿</span>
+  </div>
+
+  <p class="status-label" id="statusLabel">Searching for angel.local…</p>
+
+  <!-- Fallback: manual IP -->
+  <div class="fallback" id="fallback">
+    <p class="fallback-label">Enter the IP from Serial Monitor instead:</p>
     <input type="text" id="ipInput" placeholder="e.g. 172.20.10.4" inputmode="decimal"/>
-    <button class="fallback-btn" onclick="connectManual()">Connect</button>
+    <button class="fallback-btn" onclick="connectManual()">Connect →</button>
+    <p class="hint">
+      Make sure your phone is connected to the <strong>same hotspot</strong> as the Arduino.
+    </p>
   </div>
+
+  <p class="retry" id="retryBtn" style="display:none" onclick="startConnect()">Try again</p>
 </div>
-
-<!-- ── Main app ── -->
-<div id="appScreen">
-
-  <div class="topbar">
-    <span class="topbar-title">Angel</span>
-    <div class="status-pill" onclick="syncStatus()">
-      <span class="status-dot" id="dot"></span>
-      <span id="statusText">connecting…</span>
-    </div>
-  </div>
-
-  <!-- Hero arc -->
-  <div class="bloom-hero">
-    <div class="arc-wrap">
-      <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- track -->
-        <circle cx="100" cy="100" r="80" stroke="#DDD9CE" stroke-width="10" stroke-linecap="round"
-          stroke-dasharray="440" stroke-dashoffset="110" transform="rotate(126 100 100)"/>
-        <!-- fill -->
-        <circle cx="100" cy="100" r="80" id="heroArc" stroke="#D4820A" stroke-width="10" stroke-linecap="round"
-          stroke-dasharray="440" stroke-dashoffset="440" transform="rotate(126 100 100)"
-          style="transition: stroke-dashoffset .4s cubic-bezier(.4,0,.2,1), stroke .4s"/>
-      </svg>
-      <div class="arc-center">
-        <div class="arc-pct" id="arcPct">—</div>
-        <div class="arc-label">bloom</div>
-      </div>
-    </div>
-    <div class="mode-badge" id="modeBadge">● breathing</div>
-  </div>
-
-  <!-- Mode -->
-  <div class="section">
-    <p class="section-label">Mode</p>
-    <div class="mode-grid">
-      <button class="mode-btn active" data-mode="breathe" onclick="setMode('breathe',this)">
-        <span class="mb-icon">🌬</span>
-        <span class="mb-name">Breathe</span>
-        <span class="mb-desc">Auto open & close</span>
-      </button>
-      <button class="mode-btn" data-mode="pause" onclick="setMode('pause',this)">
-        <span class="mb-icon">⏸</span>
-        <span class="mb-name">Pause</span>
-        <span class="mb-desc">Hold position</span>
-      </button>
-      <button class="mode-btn" data-mode="open" onclick="setMode('open',this)">
-        <span class="mb-icon">☀️</span>
-        <span class="mb-name">Open</span>
-        <span class="mb-desc">Stay fully open</span>
-      </button>
-      <button class="mode-btn" data-mode="manual" onclick="setMode('manual',this)">
-        <span class="mb-icon">🎛</span>
-        <span class="mb-name">Manual</span>
-        <span class="mb-desc">Set exact position</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Speed -->
-  <div class="section">
-    <div class="card">
-      <p class="card-label">Bloom speed</p>
-      <div class="slider-row">
-        <span class="slider-edge">Slow</span>
-        <input type="range" id="speedSlider" min="1" max="10" value="5" step="1"
-          oninput="document.getElementById('speedVal').textContent=this.value"/>
-        <span class="slider-edge">Fast</span>
-        <span class="slider-val" id="speedVal">5</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Pause -->
-  <div class="section">
-    <div class="card">
-      <p class="card-label">Pause between cycles</p>
-      <div class="slider-row">
-        <span class="slider-edge">0s</span>
-        <input type="range" id="pauseSlider" min="0" max="10" value="2" step="1"
-          oninput="document.getElementById('pauseVal').textContent=this.value+'s'"/>
-        <span class="slider-edge">10s</span>
-        <span class="slider-val" id="pauseVal">2s</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Manual position -->
-  <div class="section">
-    <div class="card manual-card dim" id="manualCard">
-      <p class="card-label">Bloom position — manual only</p>
-      <div class="slider-row">
-        <span class="slider-edge">Closed</span>
-        <input type="range" id="bloomSlider" min="0" max="100" value="0" step="1"
-          oninput="updateBloom(parseInt(this.value))"/>
-        <span class="slider-edge">Open</span>
-        <span class="slider-val" id="bloomVal">0%</span>
-      </div>
-    </div>
-  </div>
-
-  <button class="send-btn" onclick="sendCommand()">Send to sculpture</button>
-  <p class="change-ip" onclick="changeIP()">Use manual IP address</p>
-
-</div>
-
-<div class="toast" id="toast"></div>
 
 <script>
-  let currentMode = 'breathe';
-  let currentBloom = 0;
-
-  // Default hostname — no IP entry needed!
-  // Override stored in localStorage only if user manually entered an IP.
-  const DEFAULT_HOST = 'angel.local';
-  let arduinoHost = localStorage.getItem('angelHost') || DEFAULT_HOST;
-
-  function getBase() { return 'http://' + arduinoHost; }
-
-  // ── Arc math ──────────────────────────────────────────────
-  const ARC_FULL = 330;
-  const ARC_DA   = 440;
-
-  function setArc(pct) {
-    const fill = (pct / 100) * (ARC_DA * ARC_FULL / 360);
-    const offset = ARC_DA - fill;
-    document.getElementById('heroArc').style.strokeDashoffset = offset;
-    document.getElementById('arcPct').textContent = pct + '%';
-    const arc = document.getElementById('heroArc');
-    if (pct < 5) {
-      arc.style.stroke = '#7B5EA7';
-    } else {
-      const t = pct / 100;
-      const r = Math.round(0x7B + (0xD4 - 0x7B) * t);
-      const g = Math.round(0x5E + (0x82 - 0x5E) * t);
-      const b = Math.round(0xA7 + (0x0A - 0xA7) * t);
-      arc.style.stroke = `rgb(${r},${g},${b})`;
-    }
+  // ── Petals ─────────────────────────────────────────────────
+  const colors = ['#D4820A','#C0701A','#E8A44A','#7B5EA7','#A07BC0'];
+  const canvas = document.getElementById('bgCanvas');
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement('div');
+    p.className = 'petal';
+    const size = 10 + Math.random() * 22;
+    p.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${8+Math.random()*14}s;
+      animation-delay:${-Math.random()*20}s;
+    `;
+    canvas.appendChild(p);
   }
 
-  function updateBloom(v) {
-    currentBloom = v;
-    document.getElementById('bloomVal').textContent = v + '%';
-    if (currentMode === 'manual') setArc(v);
+  // ── Ring progress animation ─────────────────────────────────
+  const DASH = 188;
+  let ringProgress = 0;
+  let ringInterval = null;
+
+  function animateRing() {
+    ringInterval = setInterval(() => {
+      ringProgress = Math.min(ringProgress + 2, 85);
+      document.getElementById('ringFill').style.strokeDashoffset =
+        DASH - (ringProgress / 100) * DASH;
+    }, 40);
   }
 
-  // ── Mode ──────────────────────────────────────────────────
-  function setMode(m, el) {
-    currentMode = m;
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    el.classList.add('active');
-    const mc = document.getElementById('manualCard');
-    mc.className = 'card manual-card' + (m === 'manual' ? '' : ' dim');
-    const badge = document.getElementById('modeBadge');
-    const labels = { breathe:'● breathing', pause:'◼ paused', open:'◎ open', manual:'◈ manual' };
-    badge.textContent = labels[m] || m;
-    badge.className = 'mode-badge' + (m==='pause'?' paused':m==='manual'?' manual':'');
-    if (m === 'open')   setArc(100);
-    if (m === 'breathe' || m === 'pause') setArc(currentBloom);
+  function completeRing(success) {
+    clearInterval(ringInterval);
+    const fill = document.getElementById('ringFill');
+    fill.style.stroke = success ? '#3A7D5B' : '#C0392B';
+    fill.style.strokeDashoffset = success ? 0 : DASH;
+    document.getElementById('ringIcon').textContent = success ? '✓' : '✕';
   }
 
-  // ── Connecting overlay ────────────────────────────────────
-  function showOverlay()  { document.getElementById('connectingOverlay').classList.add('show'); }
-  function hideOverlay()  { document.getElementById('connectingOverlay').classList.remove('show'); }
-
-  function changeIP() {
-    document.getElementById('ipInput').value = arduinoHost === DEFAULT_HOST ? '' : arduinoHost;
-    showOverlay();
+  // ── Status helpers ──────────────────────────────────────────
+  function setLabel(msg, cls) {
+    const el = document.getElementById('statusLabel');
+    el.textContent = msg;
+    el.className = 'status-label' + (cls ? ' ' + cls : '');
   }
 
-  async function connectManual() {
+  // ── Connect ─────────────────────────────────────────────────
+  //
+  // Strategy: navigate to http://angel.local
+  // This is a top-level browser navigation (not a fetch),
+  // so it is NOT blocked by mixed-content rules.
+  // The Arduino serves the full control app at that address.
+  //
+  function goTo(host) {
+    window.location.href = 'http://' + host;
+  }
+
+  async function startConnect() {
+    ringProgress = 0;
+    document.getElementById('ringFill').style.stroke = 'var(--amber)';
+    document.getElementById('ringFill').style.strokeDashoffset = DASH;
+    document.getElementById('ringIcon').textContent = '🌿';
+    document.getElementById('fallback').classList.remove('show');
+    document.getElementById('retryBtn').style.display = 'none';
+    setLabel('Searching for angel.local…');
+    animateRing();
+
+    // Give the ring a moment to animate, then navigate
+    await new Promise(r => setTimeout(r, 1200));
+    setLabel('Connecting…');
+    await new Promise(r => setTimeout(r, 600));
+
+    // Navigate — the browser will load http://angel.local
+    // If the Arduino is up, the control app loads.
+    // If not reachable, the browser shows its own "can't connect" page.
+    setLabel('Opening sculpture control…', 'ok');
+    completeRing(true);
+
+    await new Promise(r => setTimeout(r, 500));
+    goTo('angel.local');
+  }
+
+  function connectManual() {
     const val = document.getElementById('ipInput').value.trim();
     if (!val) return;
-    arduinoHost = val;
-    localStorage.setItem('angelHost', val);
-    await tryConnect();
+    goTo(val);
   }
 
-  // ── Status ────────────────────────────────────────────────
-  function setStatus(ok, txt) {
-    document.getElementById('dot').className = 'status-dot' + (ok===true?' on':ok===false?' err':'');
-    document.getElementById('statusText').textContent = txt;
-  }
+  // Show fallback after a delay in case user is stuck
+  setTimeout(() => {
+    document.getElementById('fallback').classList.add('show');
+    document.getElementById('retryBtn').style.display = 'block';
+  }, 4000);
 
-  function applyStatus(d) {
-    if (d.mode) {
-      currentMode = d.mode;
-      document.querySelectorAll('.mode-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.mode === d.mode);
-      });
-      const mc = document.getElementById('manualCard');
-      mc.className = 'card manual-card' + (d.mode==='manual' ? '' : ' dim');
-      const badge = document.getElementById('modeBadge');
-      const labels = { breathe:'● breathing', pause:'◼ paused', open:'◎ open', manual:'◈ manual' };
-      badge.textContent = labels[d.mode] || d.mode;
-      badge.className = 'mode-badge' + (d.mode==='pause'?' paused':d.mode==='manual'?' manual':'');
-    }
-    if (d.speed != null) {
-      document.getElementById('speedSlider').value = d.speed;
-      document.getElementById('speedVal').textContent = d.speed;
-    }
-    if (d.pause != null) {
-      document.getElementById('pauseSlider').value = d.pause;
-      document.getElementById('pauseVal').textContent = d.pause + 's';
-    }
-    if (d.bloom != null) {
-      currentBloom = d.bloom;
-      document.getElementById('bloomSlider').value = d.bloom;
-      document.getElementById('bloomVal').textContent = d.bloom + '%';
-      setArc(d.bloom);
-    }
-  }
-
-  async function tryConnect() {
-    try {
-      const r = await fetch(getBase() + '/status', { signal: AbortSignal.timeout(5000) });
-      if (r.ok) {
-        hideOverlay();
-        applyStatus(await r.json());
-        setStatus(true, 'connected');
-        setInterval(syncStatus, 8000);
-      } else {
-        setStatus(false, 'error');
-      }
-    } catch(e) {
-      setStatus(false, 'cannot reach angel.local');
-      // Keep overlay visible so user can enter IP manually
-    }
-  }
-
-  async function syncStatus() {
-    try {
-      const r = await fetch(getBase() + '/status', { signal: AbortSignal.timeout(3000) });
-      if (r.ok) { applyStatus(await r.json()); setStatus(true, 'connected'); hideOverlay(); }
-      else setStatus(false, 'error');
-    } catch(e) { setStatus(false, 'lost connection'); }
-  }
-
-  // ── Send ──────────────────────────────────────────────────
-  async function sendCommand() {
-    const params = new URLSearchParams({
-      mode:  currentMode,
-      speed: document.getElementById('speedSlider').value,
-      pause: document.getElementById('pauseSlider').value,
-      bloom: document.getElementById('bloomSlider').value
-    });
-    try {
-      const r = await fetch(getBase() + '/control?' + params, { signal: AbortSignal.timeout(4000) });
-      if (r.ok) { setStatus(true, 'connected'); showToast('Sent ✓'); }
-      else showToast('Sculpture returned an error', true);
-    } catch(e) { setStatus(false, 'lost connection'); showToast('Cannot reach sculpture', true); }
-  }
-
-  // ── Toast ─────────────────────────────────────────────────
-  function showToast(msg, err) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'toast' + (err ? ' err' : '') + ' show';
-    setTimeout(() => t.className = 'toast' + (err ? ' err' : ''), 2500);
-  }
-
-  // ── Init: auto-connect to angel.local ─────────────────────
-  tryConnect();
+  // Start immediately
+  startConnect();
 </script>
 </body>
 </html>
