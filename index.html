@@ -164,7 +164,7 @@
 <div class="card">
   <div class="flower">🌸</div>
   <h1>Angel <em>sculpture</em></h1>
-  <p class="subtitle">Opening connection to your kinetic bloom…</p>
+  <p class="subtitle">Connecting to Angel sculpture…</p>
 
   <!-- Progress ring -->
   <div class="ring-wrap" id="ringWrap">
@@ -175,7 +175,7 @@
     <span class="ring-icon" id="ringIcon">🌿</span>
   </div>
 
-  <p class="status-label" id="statusLabel">Searching for angel.local…</p>
+  <p class="status-label" id="statusLabel">Connecting to 172.20.10.10…</p>
 
   <!-- Fallback: manual IP -->
   <div class="fallback" id="fallback">
@@ -254,7 +254,7 @@
     document.getElementById('ringIcon').textContent = '🌿';
     document.getElementById('fallback').classList.remove('show');
     document.getElementById('retryBtn').style.display = 'none';
-    setLabel('Searching for angel.local…');
+    setLabel('Connecting to 172.20.10.10…');
     animateRing();
 
     // Give the ring a moment to animate, then navigate
@@ -269,7 +269,7 @@
     completeRing(true);
 
     await new Promise(r => setTimeout(r, 500));
-    goTo('angel.local');
+    goTo('172.20.10.10');  // fixed static IP — always works with iPhone hotspot
   }
 
   function connectManual() {
@@ -278,11 +278,11 @@
     goTo(val);
   }
 
-  // Show fallback after a delay in case user is stuck
+  // Show fallback after longer delay — fixed IP should work automatically
   setTimeout(() => {
     document.getElementById('fallback').classList.add('show');
     document.getElementById('retryBtn').style.display = 'block';
-  }, 4000);
+  }, 6000);
 
   // Start immediately
   startConnect();

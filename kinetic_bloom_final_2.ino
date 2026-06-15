@@ -223,6 +223,13 @@ setInterval(syncStatus,15000);
 </html>)rawhtml";
 
 // ── WiFi ──────────────────────────────────────────────────────
+// Fixed IP — Arduino is ALWAYS at http://172.20.10.10 on the iPhone hotspot.
+// iPhone hotspot uses 172.20.10.x (gateway .1, subnet /28).
+// This means no typing, no mDNS required — the Netlify page goes straight here.
+IPAddress STATIC_IP(172, 20, 10, 10);
+IPAddress GATEWAY(172, 20, 10, 1);
+IPAddress SUBNET(255, 255, 255, 240);
+
 void connectWiFi() {
   Serial.println("\nConnecting to hotspot...");
   Serial.print("SSID: ");
@@ -231,6 +238,10 @@ void connectWiFi() {
   WiFi.disconnect();
   delay(500);
   WiFi.hostName("angel");
+
+  // Set static IP before connecting
+  WiFi.config(STATIC_IP, GATEWAY, SUBNET);
+
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   unsigned long start = millis();
@@ -248,20 +259,15 @@ void connectWiFi() {
   }
 
   Serial.println();
-  Serial.println("=============================");
-  Serial.println("   CONNECTED TO HOTSPOT");
-  Serial.println("=============================");
-  Serial.print("   IP:   http://");
-  Serial.println(WiFi.localIP());
-  Serial.println("   URL:  http://angel.local");
-  Serial.println("  Open either in your phone browser");
-  Serial.println("=============================");
+  Serial.println("===================================");
+  Serial.println("   CONNECTED  -  FIXED IP ACTIVE");
+  Serial.println("===================================");
+  Serial.println("   http://172.20.10.10");
+  Serial.println("   http://angel.local  (backup)");
+  Serial.println("===================================");
 
-  // Start mDNS — board reachable as http://angel.local
-  if (!MDNS.begin("angel")) {
-    Serial.println("mDNS start failed — use IP instead");
-  } else {
-    Serial.println("mDNS: http://angel.local is active");
+  // mDNS backup so angel.local also works
+  if (MDNS.begin("angel")) {
     MDNS.addService("http", "tcp", 80);
   }
 
