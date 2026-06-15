@@ -127,10 +127,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;heigh
   </button>
 </div>
 <div class="card">
-  <p class="lbl">Bloom speed</p>
+  <p class="lbl">Bloom speed <span id="spdSending" style="color:var(--a);font-size:10px;opacity:0;transition:opacity .2s">sending...</span></p>
   <div class="row">
     <span class="edge">Slow</span>
-    <input type="range" id="spd" min="1" max="10" value="5" step="1" oninput="V('sv',this.value)"/>
+    <input type="range" id="spd" min="1" max="10" value="5" step="1"
+      oninput="V('sv',this.value)"
+      onchange="quickSpeed(this.value)"/>
     <span class="edge">Fast</span>
     <span class="val" id="sv">5</span>
   </div>
@@ -170,6 +172,15 @@ function showToast(msg,err){
 }
 function getParams(){
   return new URLSearchParams({mode:mode,speed:document.getElementById('spd').value,pause:document.getElementById('psd').value,bloom:document.getElementById('bl').value});
+}
+async function quickSpeed(v){
+  const ind=document.getElementById('spdSending');
+  ind.style.opacity='1';
+  try{
+    await fetch('/speed?v='+v,{signal:AbortSignal.timeout(2000)});
+    setStatus(true,'connected');
+  }catch(e){setStatus(false,'lost connection');}
+  ind.style.opacity='0';
 }
 async function send(p,silent){
   try{
@@ -316,7 +327,7 @@ void ultraSmoothMoveMirrored(int startPos, int endPos) {
 
   for (int i = 0; i <= steps; i++) {
     if (stateChanged) return;
-    if (i % 50 == 0) pollServer();
+    if (i % 10 == 0) pollServer();  // poll often so speed changes feel instant
 
     float p = (float)i / steps;
     float ep = (p < 0.5f)
@@ -368,6 +379,7 @@ void handleClient(WiFiClient &client) {
   bool isRoot    = req.indexOf("GET / ")    >= 0 || req.indexOf("GET /\r") >= 0;
   bool isStatus  = req.indexOf("GET /status")  >= 0;
   bool isControl = req.indexOf("GET /control") >= 0;
+  bool isSpeed   = req.indexOf("GET /speed")   >= 0;
   bool isOptions = req.indexOf("OPTIONS ")      >= 0;
 
   if (isOptions) {
@@ -378,6 +390,21 @@ void handleClient(WiFiClient &client) {
     client.println("Access-Control-Allow-Private-Network: true");
     client.println("Connection: close");
     client.println();
+    client.stop();
+    return;
+  }
+
+  // Fast /speed endpoint -- updates speedLevel immediately, minimal response
+  if (isSpeed) {
+    String vStr = parseParam(req, "v");
+    if (vStr.length()) speedLevel = constrain(vStr.toInt(), 1, 10);
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/plain");
+    client.println("Access-Control-Allow-Origin: *");
+    client.println("Connection: close");
+    client.println("Content-Length: 2");
+    client.println();
+    client.print("ok");
     client.stop();
     return;
   }
