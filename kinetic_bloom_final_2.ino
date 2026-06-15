@@ -5,8 +5,9 @@
  * HOW TO USE:
  *   1. Turn on your phone hotspot
  *   2. Power the Arduino
- *   3. Open Serial Monitor (9600 baud) — wait for the IP to print
- *   4. Type  http://[IP]  in your phone browser — the control app loads
+ *   3. Connect your phone to the same hotspot
+ *   4. Open  http://angel.local  in your phone browser — the control app loads
+ *      (No IP address needed!)
  *
  * Wiring:
  *   PCA9685 SDA  → Arduino A4
@@ -25,6 +26,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <WiFiS3.h>
+#include <WiFiMDNS.h>
 #include <Wire.h>
 
 // ── WiFi credentials ──────────────────────────────────────────
@@ -249,10 +251,19 @@ void connectWiFi() {
   Serial.println("=============================");
   Serial.println("   CONNECTED TO HOTSPOT");
   Serial.println("=============================");
-  Serial.print("   http://");
+  Serial.print("   IP:   http://");
   Serial.println(WiFi.localIP());
-  Serial.println("  Open ^ in your phone browser");
+  Serial.println("   URL:  http://angel.local");
+  Serial.println("  Open either in your phone browser");
   Serial.println("=============================");
+
+  // Start mDNS — board reachable as http://angel.local
+  if (!MDNS.begin("angel")) {
+    Serial.println("mDNS start failed — use IP instead");
+  } else {
+    Serial.println("mDNS: http://angel.local is active");
+    MDNS.addService("http", "tcp", 80);
+  }
 
   server.begin();
 }

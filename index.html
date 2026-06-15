@@ -33,57 +33,42 @@
   }
   body { overflow-x: hidden; }
 
-  /* ── Setup screen ── */
-  #setupScreen {
-    min-height: 100vh;
-    display: flex;
+  /* ── Connecting overlay ── */
+  #connectingOverlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 100;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 2rem 1.5rem;
-    text-align: center;
+    gap: 1rem;
   }
-  .setup-icon {
-    width: 64px; height: 64px;
-    background: var(--amber-lt);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 1.5rem;
-    font-size: 28px;
+  #connectingOverlay.show { display: flex; }
+  .connecting-icon { font-size: 40px; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .connecting-label { font-size: 15px; color: var(--muted); }
+  .fallback-ip {
+    margin-top: 1.5rem; font-size: 12px; color: var(--muted);
+    text-align: center; line-height: 1.8;
   }
-  .setup-title { font-size: 22px; font-weight: 500; margin-bottom: .4rem; }
-  .setup-sub { font-size: 14px; color: var(--muted); margin-bottom: 2rem; line-height: 1.5; max-width: 280px; }
-  .ip-field {
-    width: 100%; max-width: 320px;
-    padding: 13px 16px;
-    font-size: 16px; font-family: inherit;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: white;
-    color: var(--text);
-    text-align: center;
-    letter-spacing: .02em;
-    margin-bottom: 12px;
-    outline: none;
-    transition: border-color .2s;
+  .fallback-ip input {
+    display: block; margin: .5rem auto 0;
+    width: 200px; padding: 8px 12px;
+    font-size: 14px; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: white; color: var(--text); text-align: center; outline: none;
   }
-  .ip-field:focus { border-color: var(--amber); }
-  .connect-btn {
-    width: 100%; max-width: 320px;
-    padding: 14px;
-    font-size: 15px; font-weight: 500; font-family: inherit;
-    background: var(--text);
-    color: white;
-    border: none; border-radius: 12px;
-    cursor: pointer;
-    transition: background .15s, transform .1s;
+  .fallback-ip input:focus { border-color: var(--amber); }
+  .fallback-btn {
+    display: block; margin: .5rem auto 0;
+    padding: 8px 20px; font-size: 13px; font-family: inherit; font-weight: 500;
+    background: var(--text); color: white;
+    border: none; border-radius: 8px; cursor: pointer;
   }
-  .connect-btn:active { transform: scale(0.98); background: #333; }
-  .setup-hint { font-size: 12px; color: var(--muted); margin-top: 1rem; line-height: 1.6; }
-  .setup-hint b { color: var(--text); font-weight: 500; }
 
   /* ── Main app ── */
-  #appScreen { display: none; min-height: 100vh; padding-bottom: 2rem; }
+  #appScreen { display: block; min-height: 100vh; padding-bottom: 2rem; }
 
   /* Status bar */
   .topbar {
@@ -230,7 +215,7 @@
   }
   .send-btn:active { transform: scale(0.98); background: #333; }
 
-  /* Change IP link */
+  /* Change address link */
   .change-ip {
     text-align: center; margin-top: 1rem;
     font-size: 13px; color: var(--muted);
@@ -255,18 +240,15 @@
 </head>
 <body>
 
-<!-- ── Setup screen ── -->
-<div id="setupScreen">
-  <div class="setup-icon">🌸</div>
-  <h1 class="setup-title">Connect to Angel</h1>
-  <p class="setup-sub">Enter the IP address shown in your Arduino Serial Monitor</p>
-  <input class="ip-field" type="text" id="ipInput" placeholder="e.g. 172.20.10.4" inputmode="decimal"/>
-  <button class="connect-btn" onclick="tryConnect()">Connect</button>
-  <p class="setup-hint">
-    <b>Before connecting:</b> turn on your phone hotspot,<br>
-    power the Arduino, then open Serial Monitor<br>
-    to find the IP address.
-  </p>
+<!-- ── Connecting overlay (shown while first fetch is in-flight) ── -->
+<div id="connectingOverlay" class="show">
+  <div class="connecting-icon">🌸</div>
+  <div class="connecting-label">Connecting to Angel…</div>
+  <div class="fallback-ip">
+    Not working? Enter IP manually:<br>
+    <input type="text" id="ipInput" placeholder="e.g. 172.20.10.4" inputmode="decimal"/>
+    <button class="fallback-btn" onclick="connectManual()">Connect</button>
+  </div>
 </div>
 
 <!-- ── Main app ── -->
@@ -370,7 +352,7 @@
   </div>
 
   <button class="send-btn" onclick="sendCommand()">Send to sculpture</button>
-  <p class="change-ip" onclick="changeIP()">Change IP address</p>
+  <p class="change-ip" onclick="changeIP()">Use manual IP address</p>
 
 </div>
 
@@ -379,26 +361,27 @@
 <script>
   let currentMode = 'breathe';
   let currentBloom = 0;
-  let arduinoIP = '';
+
+  // Default hostname — no IP entry needed!
+  // Override stored in localStorage only if user manually entered an IP.
+  const DEFAULT_HOST = 'angel.local';
+  let arduinoHost = localStorage.getItem('angelHost') || DEFAULT_HOST;
+
+  function getBase() { return 'http://' + arduinoHost; }
 
   // ── Arc math ──────────────────────────────────────────────
-  // 3/4 circle arc: total arc = 330deg = 440 * (330/360) = 403.3 of circumference 502.7
-  // But we'll use dasharray=440, 330deg sweep.
-  // dashoffset: 440 = empty, 440 - (pct/100)*330 = fill
-  const ARC_FULL = 330; // degrees of sweep used
-  const ARC_DA   = 440; // stroke-dasharray value
+  const ARC_FULL = 330;
+  const ARC_DA   = 440;
 
   function setArc(pct) {
     const fill = (pct / 100) * (ARC_DA * ARC_FULL / 360);
     const offset = ARC_DA - fill;
     document.getElementById('heroArc').style.strokeDashoffset = offset;
     document.getElementById('arcPct').textContent = pct + '%';
-    // Color: interpolate closed (purple-ish) → open (amber)
     const arc = document.getElementById('heroArc');
     if (pct < 5) {
       arc.style.stroke = '#7B5EA7';
     } else {
-      // blend from #7B5EA7 → #D4820A
       const t = pct / 100;
       const r = Math.round(0x7B + (0xD4 - 0x7B) * t);
       const g = Math.round(0x5E + (0x82 - 0x5E) * t);
@@ -420,51 +403,29 @@
     el.classList.add('active');
     const mc = document.getElementById('manualCard');
     mc.className = 'card manual-card' + (m === 'manual' ? '' : ' dim');
-
     const badge = document.getElementById('modeBadge');
     const labels = { breathe:'● breathing', pause:'◼ paused', open:'◎ open', manual:'◈ manual' };
     badge.textContent = labels[m] || m;
     badge.className = 'mode-badge' + (m==='pause'?' paused':m==='manual'?' manual':'');
-
     if (m === 'open')   setArc(100);
     if (m === 'breathe' || m === 'pause') setArc(currentBloom);
   }
 
-  // ── IP / Setup ────────────────────────────────────────────
-  function getBase() { return 'http://' + arduinoIP; }
-
-  function showSetup() {
-    document.getElementById('setupScreen').style.display = 'flex';
-    document.getElementById('appScreen').style.display = 'none';
-  }
-
-  function showApp() {
-    document.getElementById('setupScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-  }
+  // ── Connecting overlay ────────────────────────────────────
+  function showOverlay()  { document.getElementById('connectingOverlay').classList.add('show'); }
+  function hideOverlay()  { document.getElementById('connectingOverlay').classList.remove('show'); }
 
   function changeIP() {
-    localStorage.removeItem('angelIP');
-    showSetup();
+    document.getElementById('ipInput').value = arduinoHost === DEFAULT_HOST ? '' : arduinoHost;
+    showOverlay();
   }
 
-  async function tryConnect() {
+  async function connectManual() {
     const val = document.getElementById('ipInput').value.trim();
     if (!val) return;
-    arduinoIP = val;
-    try {
-      const r = await fetch(getBase() + '/status', { signal: AbortSignal.timeout(4000) });
-      if (r.ok) {
-        localStorage.setItem('angelIP', val);
-        showApp();
-        applyStatus(await r.json());
-        setStatus(true, 'connected');
-      } else {
-        showToast('No response from ' + val, true);
-      }
-    } catch(e) {
-      showToast('Cannot reach ' + val, true);
-    }
+    arduinoHost = val;
+    localStorage.setItem('angelHost', val);
+    await tryConnect();
   }
 
   // ── Status ────────────────────────────────────────────────
@@ -502,10 +463,27 @@
     }
   }
 
+  async function tryConnect() {
+    try {
+      const r = await fetch(getBase() + '/status', { signal: AbortSignal.timeout(5000) });
+      if (r.ok) {
+        hideOverlay();
+        applyStatus(await r.json());
+        setStatus(true, 'connected');
+        setInterval(syncStatus, 8000);
+      } else {
+        setStatus(false, 'error');
+      }
+    } catch(e) {
+      setStatus(false, 'cannot reach angel.local');
+      // Keep overlay visible so user can enter IP manually
+    }
+  }
+
   async function syncStatus() {
     try {
       const r = await fetch(getBase() + '/status', { signal: AbortSignal.timeout(3000) });
-      if (r.ok) { applyStatus(await r.json()); setStatus(true, 'connected'); }
+      if (r.ok) { applyStatus(await r.json()); setStatus(true, 'connected'); hideOverlay(); }
       else setStatus(false, 'error');
     } catch(e) { setStatus(false, 'lost connection'); }
   }
@@ -533,17 +511,8 @@
     setTimeout(() => t.className = 'toast' + (err ? ' err' : ''), 2500);
   }
 
-  // ── Init ──────────────────────────────────────────────────
-  const saved = localStorage.getItem('angelIP');
-  if (saved) {
-    arduinoIP = saved;
-    document.getElementById('ipInput').value = saved;
-    showApp();
-    syncStatus();
-    setInterval(syncStatus, 8000);
-  } else {
-    showSetup();
-  }
+  // ── Init: auto-connect to angel.local ─────────────────────
+  tryConnect();
 </script>
 </body>
 </html>
