@@ -26,7 +26,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <WiFiS3.h>
-#include <WiFiMDNS.h>
 #include <Wire.h>
 
 // ── WiFi credentials ──────────────────────────────────────────
@@ -266,10 +265,6 @@ void connectWiFi() {
   Serial.println("   http://angel.local  (backup)");
   Serial.println("===================================");
 
-  // mDNS backup so angel.local also works
-  if (MDNS.begin("angel")) {
-    MDNS.addService("http", "tcp", 80);
-  }
 
   server.begin();
 }
@@ -787,7 +782,6 @@ tic Blooming Sculpture — WiFi Controller Edition
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_PWMServoDriver.h>
 #include <WiFiS3.h>
-#include <WiFiMDNS.h>
 #include <Wire.h>
 
 // ── WiFi credentials ──────────────────────────────────────────
@@ -1014,17 +1008,7 @@ void connectWiFi() {
   Serial.println("=============================");
   Serial.print("   IP:   http://");
   Serial.println(WiFi.localIP());
-  Serial.println("   URL:  http://angel.local");
-  Serial.println("  Open either in your phone browser");
   Serial.println("=============================");
-
-  // Start mDNS — board reachable as http://angel.local
-  if (!MDNS.begin("angel")) {
-    Serial.println("mDNS start failed — use IP instead");
-  } else {
-    Serial.println("mDNS: http://angel.local is active");
-    MDNS.addService("http", "tcp", 80);
-  }
 
   server.begin();
 }
